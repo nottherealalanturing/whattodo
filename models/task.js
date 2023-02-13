@@ -6,13 +6,13 @@ const taskSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    validate: (value) => validator.isAlpha(value),
+    //validate: (value) => validator.isAlpha(value),
   },
   description: {
     type: String,
     required: true,
     unique: true,
-    validate: (value) => validator.isAlpha(value),
+    //validate: (value) => validator.isAlpha(value),
   },
 });
 

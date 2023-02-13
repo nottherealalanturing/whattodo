@@ -1,4 +1,4 @@
-const logger = "./logger.js";
+const logger = require("./logger.js");
 
 const requestLogger = (request, response, next) => {
   logger.info("Method:", request.method);
@@ -12,7 +12,7 @@ const unknownEndpoint = (request, response) => {
   response.status(404).send({ error: "unknown endpoint" });
 };
 
-const errorHandler = (request, response, next, error) => {
+const errorHandler = (error, request, response, next) => {
   logger.error(error.message);
 
   if (error.name === "CastError")
