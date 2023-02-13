@@ -7,7 +7,7 @@ logger.info("connecting to database");
 
 module.exports = () => {
   mongoose
-    .connect(config.MONGODB_URI)
+    .connect(config.MONGODB_URI())
     .then(() => logger.info("connected to MongoDB"))
     .catch((error) =>
       logger.error("error connecting to mongoDB:", error.message)
