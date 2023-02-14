@@ -1,23 +1,24 @@
 const taskRouter = require("express").Router();
 const Task = require("../models/task");
 
-taskRouter.get("/", (request, response, next) =>
-  Task.find({})
-    .then((tasks) => response.json(tasks))
-    .catch((error) => next(error))
-);
+taskRouter.get("/", async (request, response) => {
+  const notes = await Task.find({});
+  response.json(notes);
+});
 
-taskRouter.post("/", (request, response, next) => {
+taskRouter.post("/", async (request, response, next) => {
   const { title, description } = request.body;
   const task = new Task({
     title,
     description,
   });
 
-  task
-    .save()
-    .then((savedTask) => response.json(savedTask))
-    .catch((error) => next(error));
+  try {
+    const savedTask = await task.save();
+    response.status(201).json(savedTask);
+  } catch (exception) {
+    next(exception);
+  }
 });
 
 taskRouter.get("/:id", (request, response, next) => {
