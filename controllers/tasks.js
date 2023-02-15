@@ -1,5 +1,6 @@
 const taskRouter = require("express").Router();
 const Task = require("../models/task");
+require("express-async-errors");
 
 taskRouter.get("/", async (request, response) => {
   const notes = await Task.find({});
@@ -13,38 +14,33 @@ taskRouter.post("/", async (request, response, next) => {
     description,
   });
 
-  try {
-    const savedTask = await task.save();
-    response.status(201).json(savedTask);
-  } catch (exception) {
-    next(exception);
+  const savedTask = await task.save();
+  response.status(201).json(savedTask);
+});
+
+taskRouter.get("/:id", async (request, response, next) => {
+  const task = await Task.findById(request.params.id);
+  if (task) {
+    response.json(task);
+  } else {
+    response.status(404).end();
   }
 });
 
-taskRouter.get("/:id", (request, response, next) => {
-  Task.findById(request.params.id)
-    .then((task) => {
-      if (task) {
-        response.json(task);
-      } else {
-        response.status(404).end();
-      }
-    })
-    .catch((error) => next(error));
+taskRouter.delete("/:id", async (request, response, next) => {
+  await Task.findByIdAndRemove(request.params.id);
+  response.status(204).end();
 });
 
-taskRouter.delete("/:id", (request, response, next) => {
-  Task.findByIdAndRemove(request.params.id)
-    .then(() => response.status(204).end())
-    .catch((error) => next(error));
-});
-
-taskRouter.put("/:id", (request, response, next) => {
+taskRouter.put("/:id", async (request, response, next) => {
   const { title, description } = request.body;
   const updatedTask = { title, description };
-  Task.findByIdAndUpdate(request.params.id, updatedTask, { new: true })
-    .then((savedUpdate) => response.json(savedUpdate))
-    .catch((error) => next(error));
+  const saveUpdate = await Task.findByIdAndUpdate(
+    request.params.id,
+    updatedTask,
+    { new: true }
+  );
+  response.json(savedUpdate);
 });
 
 module.exports = taskRouter;

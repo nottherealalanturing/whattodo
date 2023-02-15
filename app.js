@@ -3,6 +3,7 @@ const taskRouter = require("./controllers/tasks");
 const database = require("./utils/database");
 const middleware = require("./utils/middleware");
 const app = express();
+require("express-async-errors");
 
 database();
 
