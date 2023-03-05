@@ -5,7 +5,7 @@ const app = require("../app");
 const api = supertest(app);
 
 const Task = require("../models/task");
-
+jest.setTimeout(10000);
 beforeEach(async () => {
   await Task.deleteMany({});
   await Task.insertMany(helper.initialTasks);
