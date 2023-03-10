@@ -9,9 +9,20 @@ const userSchema = new mongoose.Schema({
   groups: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Task",
+      ref: "Group",
     },
-    ,
+  ],
+  mutuals: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+  foreignGroups: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Group",
+    },
   ],
 });
 

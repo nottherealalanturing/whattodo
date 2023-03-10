@@ -24,6 +24,10 @@ const groupSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
+  owner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Task",
+  },
 });
 
 groupSchema.set("toJSON", {
