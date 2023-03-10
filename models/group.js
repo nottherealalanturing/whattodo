@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const taskSchema = new mongoose.Schema({
+const groupSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
@@ -11,18 +11,22 @@ const taskSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  assignedTo: [
+  tasks: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Task",
+    },
+  ],
+  shared: Boolean,
+  members: [
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
   ],
-  comments: [{ body: String, date: Date }],
-  completed: Boolean,
-  dueDate: Date,
 });
 
-taskSchema.set("toJSON", {
+groupSchema.set("toJSON", {
   transform: (document, returnedObject) => {
     returnedObject.id = returnedObject._id.toString();
     delete returnedObject._id;
@@ -30,4 +34,4 @@ taskSchema.set("toJSON", {
   },
 });
 
-module.exports = mongoose.model("Task", taskSchema);
+module.exports = mongoose.model("Group", groupSchema);

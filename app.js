@@ -4,14 +4,16 @@ const taskRouter = require("./controllers/tasks");
 const usersRouter = require("./controllers/users");
 const database = require("./utils/database");
 const middleware = require("./utils/middleware");
+const cors = require("cors");
+
 const app = express();
 require("express-async-errors");
 
 database();
-
 app.use(express.json());
 app.use(middleware.requestLogger);
 
+app.use(cors());
 app.use("/api/login", loginRouter);
 app.use("/api/tasks", taskRouter);
 app.use("/api/users", usersRouter);
