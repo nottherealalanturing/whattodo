@@ -1,9 +1,0 @@
-POST http://localhost:3000/api/tasks HTTP/1.1
-content-type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFzc2FkIiwiaWQiOiI2NDA0YTJjNTY2NTg5MTIxMDk0M2U4ZWEiLCJpYXQiOjE2NzgwMjc5NDd9.o9GeuQAW3QEcmgQ9UnPuMhsM94Dyc3D63R9I8tTKSVY
-
-{
-    "title": "Watch NBC",
-    "description": "You are watching Frasier",
-    "userId": "64047bb83b1663ad4fe35c2e"
-}

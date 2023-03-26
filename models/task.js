@@ -4,12 +4,31 @@ const taskSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
-    unique: true,
+    trim: true,
+    minlength: 3,
+    maxlength: 255,
   },
   description: {
     type: String,
-    required: true,
-    unique: true,
+    required: false,
+    trim: true,
+    maxlength: 1024,
+  },
+  dueDate: {
+    type: Date,
+    required: false,
+  },
+  priority: {
+    type: Number,
+    default: 1,
+  },
+  completed: {
+    type: Boolean,
+    default: false,
+  },
+  group: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Group",
   },
   assignedTo: [
     {
@@ -17,17 +36,8 @@ const taskSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
-  comments: [{ body: String, date: Date }],
-  completed: Boolean,
-  dueDate: Date,
 });
 
-taskSchema.set("toJSON", {
-  transform: (document, returnedObject) => {
-    returnedObject.id = returnedObject._id.toString();
-    delete returnedObject._id;
-    delete returnedObject.__v;
-  },
-});
+const Task = mongoose.model("Task", taskSchema);
 
-module.exports = mongoose.model("Task", taskSchema);
+module.exports = Task;
