@@ -1,4 +1,4 @@
-const jwt = require("jsonwebtoken");
+/* const jwt = require("jsonwebtoken");
 const groupRouter = require("express").Router();
 const Group = require("../models/group");
 const User = require("../models/user");
@@ -116,3 +116,4 @@ groupRouter.put("/:id", async (request, response, next) => {
 });
 
 module.exports = groupRouter;
+ */

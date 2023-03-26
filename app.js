@@ -1,22 +1,22 @@
 const express = require("express");
-const loginRouter = require("./controllers/login");
-const taskRouter = require("./controllers/tasks");
-const usersRouter = require("./controllers/users");
 const database = require("./utils/database");
 const middleware = require("./utils/middleware");
 const cors = require("cors");
+const { passport } = require("./utils/auth");
+const { usersRouter } = require("./controllers/v1");
 
 const app = express();
 require("express-async-errors");
 
 database();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
 app.use(middleware.requestLogger);
 
-app.use(cors());
-app.use("/api/login", loginRouter);
-app.use("/api/tasks", taskRouter);
-app.use("/api/users", usersRouter);
+app.use(passport.initialize());
+
+app.use("/api/v1/auth", usersRouter);
 
 app.use(middleware.unknownEndpoint);
 app.use(middleware.errorHandler);
