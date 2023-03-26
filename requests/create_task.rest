@@ -1,7 +1,0 @@
-POST http://localhost:3000/api/tasks HTTP/1.1
-content-type: application/json
-
-{
-    "title": "Watch Nickoloen",
-    "description": "You are watching icarly"
-}
