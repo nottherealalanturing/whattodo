@@ -45,6 +45,32 @@ usersRouter.post("/signin", async (request, response) => {
   });
 });
 
+usersRouter.post(
+  "/add-friend",
+  passport.authenticate("jwt", { session: false }),
+  async (req, res, next) => {
+    const { email } = req.body;
+    const friend = await User.findOne({ email });
+    if (!friend) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    req.user.friends.push(friend._id);
+    await req.user.save();
+    res.json(req.user.friends);
+  }
+);
+
+usersRouter.post(
+  "/remove-friend",
+  passport.authenticate("jwt", { session: false }),
+  async (req, res, next) => {
+    const { friendId } = req.body;
+    req.user.friends.pull(friendId);
+    await req.user.save();
+    res.json(req.user.friends);
+  }
+);
+
 usersRouter.get(
   "/me",
   passport.authenticate("jwt", { session: false }),
