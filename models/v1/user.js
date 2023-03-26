@@ -30,6 +30,21 @@ const userSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
+  friendRequests: [
+    {
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      accepted: {
+        type: Boolean,
+        default: false,
+      },
+    },
+  ],
+  groupsCreated: [{ type: mongoose.Schema.Types.ObjectId, ref: "Group" }],
+
+  groupsAddedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: "Group" }],
 });
 
 userSchema.pre("save", async (next) => {

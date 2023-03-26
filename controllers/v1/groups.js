@@ -1,119 +1,142 @@
-/* const jwt = require("jsonwebtoken");
 const groupRouter = require("express").Router();
+const { authMiddleware } = require("../../utils/middleware");
 const Group = require("../models/group");
 const User = require("../models/user");
-require("express-async-errors");
 
-const getTokenFrom = (request) => {
-  const authorization = request.get("authorization");
-  if (authorization && authorization.startsWith("Bearer "))
-    return authorization.replace("Bearer ", "");
-  return null;
-};
-
-const currentUser = async (request) => {
-  const decodedToken = jwt.verify(getTokenFrom(request), process.env.SECRET);
-
-  if (!decodedToken.id)
-    return response.status(401).json({ error: "token invalid" });
-
-  return await User.findById(decodedToken.id);
-};
-
-const adminOnly = async (req) => {
-  if (req.user.user_type_id === 2) {
-    return res.status(401).send("Access Denied");
-  }
-};
-
-groupRouter.get("/", async (request, response) => {
-  const decodedToken = jwt.verify(getTokenFrom(request), process.env.SECRET);
-  if (!decodedToken.id)
-    return response.status(401).json({ error: "token invalid" });
-
-  const user = await User.findById(decodedToken.id).populate({
-    path: "groups",
-    model: "Group",
+groupRouter.get("/", authMiddleware, async (request, response) => {
+  const userId = request.user.id;
+  const user = await User.findById(userId)
+    .populate("groupsCreated")
+    .populate("groupsAddedTo");
+  response.json({
+    groupsCreated: user.groupsCreated,
+    groupsAddedTo: user.groupsAddedTo,
+    user,
   });
-
-  if (user) {
-    response.json(user);
-  }
 });
 
-groupRouter.post("/", async (request, response, next) => {
-  const { title, description, shared } = request.body;
-
-  const decodedToken = jwt.verify(getTokenFrom(request), process.env.SECRET);
-
-  if (!decodedToken.id)
-    return response.status(401).json({ error: "token invalid" });
-
-  const user = await User.findById(decodedToken.id);
-
-  const group = new Group({
-    title,
-    description,
-    shared,
-    owner: user,
-  });
-
-  const savedGroup = await group.save();
-  user.groups = user.groups.concat(savedGroup._id);
-  await user.save();
-  response.status(201).json(savedGroup);
+groupRouter.post("/", authMiddleware, async (request, response) => {
+  const user = request.user;
+  const { title, description } = request.body;
+  const group = new Group({ title, description, owner: user._id });
+  await group.save();
+  response.json(group);
 });
 
-groupRouter.get("/:id", async (request, response, next) => {
-  const user = currentUser(request);
+groupRouter.get("/:groupId", authMiddleware, async (request, response) => {
+  const user = request.user;
+  const group = await Group.findById(request.params.groupId).populate(
+    "members"
+  );
+  if (!group) {
+    return response.status(404).json({ error: "Group not found" });
+  }
+  if (
+    group.owner.toString() !== user._id.toString() &&
+    !group.members.includes(user._id)
+  ) {
+    return response.status(403).json({ error: "Unauthorized" });
+  }
+  response.json(group);
+});
 
-  let canView =
-    user.groups.find((g) => g.id === request.params.id) ||
-    user.foreignGroups.find((g) => g.id === request.params.id);
+groupRouter.put("/:groupId", authMiddleware, async (request, response) => {
+  const user = request.user;
+  const group = await Group.findById(request.params.groupId);
+  if (!group) {
+    return response.status(404).json({ error: "Group not found" });
+  }
+  if (group.creator.toString() !== user._id.toString()) {
+    return response.status(403).json({ error: "Unauthorized" });
+  }
+  const { name, description } = request.body;
+  group.name = name;
+  group.description = description;
+  await group.save();
+  response.json(group);
+});
 
-  if (canView) {
-    const group = await Group.findById(request.params.id).populate([
-      { path: "tasks", model: "Task" },
-      { path: "owner", model: "User" },
-      { path: "members", model: "User" },
-    ]);
-    if (group) {
-      response.json(group);
-    } else {
-      response.status(404).end();
+groupRouter.delete("/:groupId", authMiddleware, async (request, response) => {
+  const user = request.user;
+  const group = await Group.findById(request.params.groupId);
+  if (!group) {
+    return response.status(404).json({ error: "Group not found" });
+  }
+  if (group.creator.toString() !== user._id.toString()) {
+    return response.status(403).json({ error: "Unauthorized" });
+  }
+  await group.remove();
+  response.json({ message: "Group deleted successfully" });
+});
+
+groupRouter.post(
+  "/:groupId/members",
+  authMiddleware,
+  async (request, response) => {
+    const { groupId } = request.params;
+    const { memberId } = request.body;
+
+    const group = await Group.findById(groupId).populate("members");
+    if (!group) {
+      return response.status(404).json({ error: "Group not found" });
     }
-  } else {
-    response.status(404).end();
+
+    const isFriend = request.user.friends.includes(memberId);
+    if (!isFriend) {
+      return response.status(400).json({ error: "User is not a friend" });
+    }
+
+    const isMember = group.members.some((member) => member.id === memberId);
+    if (isMember) {
+      return response.status(400).json({ error: "User is already a member" });
+    }
+
+    const member = await User.findById(memberId);
+    if (!member) {
+      return response.status(404).json({ error: "User not found" });
+    }
+    group.members.push(member);
+    await group.save();
+
+    return response.status(200).json({ message: "Member added to group" });
   }
-});
+);
 
-groupRouter.delete("/:id", async (request, response, next) => {
-  const user = currentUser(request);
+groupRouter.delete(
+  "/:groupId/members/:memberId",
+  authMiddleware,
+  async (request, response) => {
+    const { groupId, memberId } = request.params;
 
-  let canDelete = user.groups.find((g) => g.id === request.params.id);
-
-  if (canDelete.owner.id === user.id) {
-    await Group.findByIdAndRemove(request.params.id);
-    response.status(204).end();
-  }
-});
-
-groupRouter.put("/:id", async (request, response, next) => {
-  const { title, description, shared } = request.body;
-  const updatedGroup = { title, description, shared };
-  const user = currentUser(request);
-
-  let canUpdate = user.groups.find((g) => g.id === request.params.id);
-
-  if (canUpdate.owner.id === user.id) {
-    const saveUpdate = await Group.findByIdAndUpdate(
-      request.params.id,
-      updatedGroup,
-      { new: true }
+    const group = await Group.findById(groupId).populate("members");
+    if (!group) {
+      return response.status(404).json({ error: "Group not found" });
+    }
+    const isMember = group.members.some(
+      (member) => member.id === request.user.id
     );
-    response.json(savedUpdate);
+    if (!isMember) {
+      return response
+        .status(403)
+        .json({ error: "User is not a member of the group" });
+    }
+
+    const member = await User.findById(memberId);
+    if (!member) {
+      return response.status(404).json({ error: "User not found" });
+    }
+    const index = group.members.findIndex((member) => member.id === memberId);
+    if (index === -1) {
+      return response
+        .status(400)
+        .json({ error: "User is not a member of the group" });
+    }
+
+    group.members.splice(index, 1);
+    await group.save();
+
+    return response.status(200).json({ message: "Member removed from group" });
   }
-});
+);
 
 module.exports = groupRouter;
- */

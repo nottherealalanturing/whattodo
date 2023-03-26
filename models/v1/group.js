@@ -1,9 +1,15 @@
 const mongoose = require("mongoose");
 
 const groupSchema = new mongoose.Schema({
-  name: {
+  title: {
     type: String,
     required: true,
+    trim: true,
+    minlength: 3,
+    maxlength: 255,
+  },
+  description: {
+    type: String,
     trim: true,
     minlength: 3,
     maxlength: 255,
