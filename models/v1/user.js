@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -16,14 +17,13 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     maxlength: 255,
   },
-  passwordHash: {
+  password: {
     type: String,
     required: true,
     trim: true,
     minlength: 6,
     maxlength: 1024,
   },
-  salt: String,
   friends: [
     {
       type: mongoose.Schema.Types.ObjectId,
@@ -31,6 +31,28 @@ const userSchema = new mongoose.Schema({
     },
   ],
 });
+
+userSchema.pre("save", async (next) => {
+  try {
+    if (!this.isModified("passwordHash")) return next();
+
+    const saltRounds = 10;
+    const salt = await bcrypt.genSalt(saltRounds);
+    const hash = await bcrypt.hash(password, salt);
+    this.password = hash;
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+});
+
+userSchema.methods.comparePassword = async (password) => {
+  try {
+    return await bcrypt.compare(password, this.password);
+  } catch (error) {
+    throw new Error("Error comparing password");
+  }
+};
 
 const User = mongoose.model("User", userSchema);
 
