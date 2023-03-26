@@ -1,5 +1,20 @@
 const logger = require("./logger.js");
 
+const passport = require("passport");
+
+const authMiddleware = (req, res, next) => {
+  passport.authenticate("jwt", { session: false }, (err, user, info) => {
+    if (err) {
+      return next(err);
+    }
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    req.user = user;
+    return next();
+  })(req, res, next);
+};
+
 const requestLogger = (request, response, next) => {
   logger.info("Method:", request.method);
   logger.info("path:", request.path);
@@ -23,4 +38,5 @@ module.exports = {
   requestLogger,
   unknownEndpoint,
   errorHandler,
+  authMiddleware,
 };

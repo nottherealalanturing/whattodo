@@ -30,6 +30,9 @@ const userSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
+  groupsCreated: [{ type: mongoose.Schema.Types.ObjectId, ref: "Group" }],
+
+  groupsAddedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: "Group" }],
 });
 
 userSchema.pre("save", async (next) => {
