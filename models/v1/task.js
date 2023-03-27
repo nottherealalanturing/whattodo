@@ -29,11 +29,18 @@ const taskSchema = new mongoose.Schema({
   group: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Group",
+    required: false,
   },
-  assignedTo: [
+  assignedUsers: [
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+  ],
+  comments: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Comment",
     },
   ],
 });
