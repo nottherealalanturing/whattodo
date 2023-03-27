@@ -37,6 +37,12 @@ const taskSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
+  comments: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Comment",
+    },
+  ],
 });
 
 const Task = mongoose.model("Task", taskSchema);
