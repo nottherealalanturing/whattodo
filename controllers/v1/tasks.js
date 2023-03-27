@@ -1,131 +1,125 @@
-/* const jwt = require("jsonwebtoken");
 const taskRouter = require("express").Router();
-const Group = require("../models/group");
-const User = require("../models/user");
-require("express-async-errors");
+const { Task, Group, User } = require("../../models/v1");
+const { authMiddleware } = require("../../utils/middleware");
 
-const getTokenFrom = (request) => {
-  const authorization = request.get("authorization");
-  if (authorization && authorization.startsWith("Bearer "))
-    return authorization.replace("Bearer ", "");
-  return null;
-};
+taskRouter.post("/", authMiddleware, async (request, response) => {
+  const { title, description, groupId, assignedUsers, dueDate } = request.body;
 
-const currentUser = async (request) => {
-  const decodedToken = jwt.verify(getTokenFrom(request), process.env.SECRET);
-
-  if (!decodedToken.id)
-    return response.status(401).json({ error: "token invalid" });
-
-  return await User.findById(decodedToken.id).populate({
-    path: "groups",
-    model: "Group",
-    populate: {
-      path: "tasks",
-      model: "Task",
-    },
-  });
-};
-
-const adminOnly = async (req) => {
-  if (req.user.user_type_id === 2) {
-    return res.status(401).send("Access Denied");
+  const group = await Group.findById(groupId);
+  if (!group) {
+    return response.status(404).json({ error: "Group not found" });
   }
-};
 
-taskRouter.get("/groups/:group_id/tasks/", async (request, response) => {
-  const decodedToken = currentUser(request);
-
-  if (user) {
-    response.json(user);
+  if (group.owner.toString() !== user._id.toString()) {
+    return response.status(403).json({ error: "Action isn't authorized" });
   }
-});
-
-taskRouter.post("/groups/:group_id/tasks/", async (request, response, next) => {
-  const { title, description, dueDate } = request.body;
-
-  const user = currentUser(request);
-  const group = await Group.findById(request.params.group_id);
 
   const task = new Task({
     title,
     description,
-    completed: false,
     dueDate,
-    owner: user,
+    group: groupId,
+    owner: request.user.id,
+    assignedUsers,
   });
 
-  if (group) {
-    await task.save();
-    group.tasks.push(task);
-    group.save();
-    response.status(201).json(task);
-  }
+  await task.save();
+
+  return response.status(201).json(task);
 });
 
-taskRouter.get(
-  "/groups/:group_id/tasks/:task_id",
-  async (request, response, next) => {
-    const user = currentUser(request);
+taskRouter.get("/:groupId", authMiddleware, async (req, res) => {
+  const { groupId } = req.params;
 
-    let canView = user.groups.find((g) => g.id === request.params.group_id);
-
-    if (canView) {
-      const group = await Group.findById(request.params.id).populate([
-        { path: "tasks", model: "Task" },
-        { path: "owner", model: "User" },
-        { path: "members", model: "User" },
-      ]);
-      if (group) {
-        const findtask = group.tasks.find(
-          (t) => t.id === request.params.task_id
-        );
-        if (findtask) response.json(findtask);
-      }
-    } else {
-      response.status(404).end();
-    }
+  const group = await Group.findById(groupId).populate("tasks");
+  if (!group) {
+    return res.status(404).json({ error: "Group not found" });
   }
-);
 
-taskRouter.delete(
-  "/groups/:group_id/tasks/:task_id",
-  async (request, response, next) => {
-    const user = currentUser(request);
+  if (!group.users.includes(req.user.id))
+    return res.status(403).json({ error: "User is not a member of the group" });
 
-    let canDelete = user.groups.find((g) => g.id === request.params.id);
+  /* const tasks = await Task.find({ group: groupId }).populate(
+    "owner assignedUsers",
+    "name email"
+  ); */
 
-    if (canDelete.owner.id === user.id) {
-      await Task.findByIdAndRemove(request.params.task_id);
-      response.status(204).end();
-    }
+  return res.status(200).json(group.tasks);
+});
+
+taskRouter.get("/:taskId", authMiddleware, async (req, res) => {
+  const { taskId } = req.params;
+
+  const task = await Task.findById(taskId);
+  if (!task) {
+    return res.status(404).json({ error: "Task not found" });
   }
-);
 
-taskRouter.put("/:id", async (request, response, next) => {
-  const { title, description, assignedTo, comments, completed, dueDate } =
-    request.body;
-  const updatedTask = {
-    title,
-    description,
-    assignedTo,
-    comments,
-    completed,
-    dueDate,
-  };
-  const user = currentUser(request);
-
-  let canUpdate = user.groups.find((g) => g.id === request.params.id);
-
-  if (canUpdate.owner.id === user.id) {
-    const savedUpdate = await Task.findByIdAndUpdate(
-      request.params.task_id,
-      updatedTask,
-      { new: true }
-    );
-    response.json(savedUpdate);
+  const group = await Group.findById(task.group);
+  if (!group) {
+    return res.status(404).json({ error: "Group not found" });
   }
+
+  if (!group.users.includes(req.user.id)) {
+    return res.status(403).json({ error: "User is not a member of the group" });
+  }
+
+  return res.status(200).json(task);
+});
+
+taskRouter.patch("/:taskId", authMiddleware, async (req, res) => {
+  const { title, description, assignedUsers } = req.body;
+  const { taskId } = req.params;
+
+  const task = await Task.findById(taskId);
+  if (!task) {
+    return res.status(404).json({ error: "Task not found" });
+  }
+
+  const group = await Group.findById(task.group);
+  if (!group) {
+    return res.status(404).json({ error: "Group not found" });
+  }
+
+  if (!group.users.includes(req.user.id)) {
+    return res.status(403).json({ error: "User is not a member of the group" });
+  }
+
+  if (task.owner.toString() !== req.user.id) {
+    return res.status(403).json({ error: "User is not the owner of the task" });
+  }
+
+  task.title = title || task.title;
+  task.description = description || task.description;
+  task.assignedUsers.push(assignedUsers);
+
+  await task.save();
+
+  return res.status(200).json(task);
+});
+
+taskRouter.delete("/:taskId", authMiddleware, async (req, res) => {
+  const { taskId } = req.params;
+  const task = await Task.findById(taskId);
+  if (!task) {
+    return res.status(404).json({ error: "Task not found" });
+  }
+
+  const group = await Group.findById(task.group);
+  if (!group) {
+    return res.status(404).json({ error: "Group not found" });
+  }
+
+  if (!group.users.includes(req.user.id)) {
+    return res.status(403).json({ error: "User is not a member of the group" });
+  }
+
+  if (task.owner.toString() !== req.user.id) {
+    return res.status(403).json({ error: "User is not the owner of the task" });
+  }
+
+  await task.remove();
+  return res.status(200).json({ message: "Task deleted successfully" });
 });
 
 module.exports = taskRouter;
- */
