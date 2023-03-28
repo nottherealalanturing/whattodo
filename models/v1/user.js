@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
+const mongoose = require('mongoose')
+const bcrypt = require('bcrypt')
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
     required: true,
     trim: true,
     minlength: 3,
-    maxlength: 255,
+    maxlength: 255
   },
   email: {
     type: String,
@@ -15,60 +15,60 @@ const userSchema = new mongoose.Schema({
     trim: true,
     unique: true,
     lowercase: true,
-    maxlength: 255,
+    maxlength: 255
   },
   password: {
     type: String,
     required: true,
     trim: true,
     minlength: 6,
-    maxlength: 1024,
+    maxlength: 1024
   },
   friends: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
+      ref: 'User'
+    }
   ],
   friendRequests: [
     {
       user: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        ref: 'User'
       },
       accepted: {
         type: Boolean,
-        default: false,
-      },
-    },
+        default: false
+      }
+    }
   ],
-  groupsCreated: [{ type: mongoose.Schema.Types.ObjectId, ref: "Group" }],
+  groupsCreated: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group' }],
 
-  groupsAddedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: "Group" }],
-});
+  groupsAddedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group' }]
+})
 
-userSchema.pre("save", async (next) => {
+userSchema.pre('save', async (next) => {
   try {
-    if (!this.isModified("passwordHash")) return next();
+    if (!this.isModified('passwordHash')) return next()
 
-    const saltRounds = 10;
-    const salt = await bcrypt.genSalt(saltRounds);
-    const hash = await bcrypt.hash(password, salt);
-    this.password = hash;
-    return next();
+    const saltRounds = 10
+    const salt = await bcrypt.genSalt(saltRounds)
+    const hash = await bcrypt.hash(this.password, salt)
+    this.password = hash
+    return next()
   } catch (error) {
-    return next(error);
+    return next(error)
   }
-});
+})
 
 userSchema.methods.comparePassword = async (password) => {
   try {
-    return await bcrypt.compare(password, this.password);
+    return await bcrypt.compare(password, this.password)
   } catch (error) {
-    throw new Error("Error comparing password");
+    throw new Error('Error comparing password')
   }
-};
+}
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model('User', userSchema)
 
-module.exports = User;
+module.exports = User
