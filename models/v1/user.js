@@ -47,9 +47,9 @@ const userSchema = new mongoose.Schema({
   groupsAddedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group' }]
 })
 
-userSchema.pre('save', async (next) => {
+userSchema.pre('save', async function (next) {
   try {
-    if (!this.isModified('passwordHash')) return next()
+    if (!this.isModified('password')) return next()
 
     const saltRounds = 10
     const salt = await bcrypt.genSalt(saltRounds)
@@ -61,7 +61,7 @@ userSchema.pre('save', async (next) => {
   }
 })
 
-userSchema.methods.comparePassword = async (password) => {
+userSchema.methods.comparePassword = async function (password) {
   try {
     return await bcrypt.compare(password, this.password)
   } catch (error) {
