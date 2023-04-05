@@ -13,7 +13,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(middleware.requestLogger);
 
-require('./utils/auth').passport(passport);
+require('./utils/auth')(passport);
+
 app.use(passport.initialize());
 
 app.use('/api/v1/auth', usersRouter);

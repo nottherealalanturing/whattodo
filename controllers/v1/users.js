@@ -1,10 +1,11 @@
 const usersRouter = require('express').Router();
+const passport = require('passport');
 const { User, FriendRequest } = require('../../models/v1');
-const { generateToken, passport } = require('../../utils/auth');
+const generateToken = require('../../utils/generateToken');
 const { authMiddleware } = require('../../utils/middleware');
 
 usersRouter.post('/signup', async (request, response) => {
-  const { email, name, password } = request.body;
+  const { email, name, password, username } = request.body;
 
   const userExists = await User.findOne({ email });
 
@@ -12,7 +13,7 @@ usersRouter.post('/signup', async (request, response) => {
     return response.status(400).json({ message: 'Email already in use' });
   }
 
-  const user = new User({ name, email, password });
+  const user = new User({ name, email, password, username });
 
   await user.save();
 
@@ -52,35 +53,48 @@ usersRouter.post(
   '/friends',
   passport.authenticate('jwt', { session: false }),
   async (request, response, next) => {
-    const { friendId } = request.body;
-    const user = await User.findById(request.user.id);
-    const friend = await User.findById(friendId);
+    const { recipient } = request.body;
+    const requester = request.user.id;
 
-    if (!friend) {
-      return response.status(404).json({ message: 'Friend not found' });
+    const foundRequester = await User.findById(requester);
+    const foundRecipient = await User.findById(recipient);
+
+    if (!foundRequester || !foundRecipient) {
+      return response.status(404).json({ message: 'User not found' });
     }
 
-    const existingRequest = user.friendRequests.find(
-      (request) => request.user.toString() === friendId
-    );
+    const existingRequest = await FriendRequest.findOne({
+      requester,
+      recipient,
+      status: 'pending',
+    });
 
     if (existingRequest) {
-      if (existingRequest.status === 'pending') {
-        return response
-          .status(400)
-          .json({ message: 'Friend request already sent' });
-      } else {
-        return response.status(400).json({ message: 'Friend already added' });
-      }
+      return response.status(400).send('Friend request already exists');
     }
 
-    const newRequest = { user: friendId, status: 'pending' };
-    user.friendRequests.push(newRequest);
-    // friend.friendRequests.push(newRequest);
-    await user.save();
-    // await friend.save();
+    if (existingRequest) {
+      return response
+        .status(400)
+        .json({ message: 'Friend request already exists' });
+    }
 
-    response.json({ message: 'Friend request sent' });
+    const friendRequest = new FriendRequest({ requester, recipient });
+    await friendRequest.save();
+
+    await User.findByIdAndUpdate(
+      foundRequester,
+      { $push: { friendRequests: friendRequest } },
+      { new: true }
+    );
+
+    await User.findByIdAndUpdate(
+      foundRecipient,
+      { $push: { friendRequests: friendRequest } },
+      { new: true }
+    );
+
+    return response.status(201).json({ message: 'Friend request sent' });
   }
 );
 
@@ -188,5 +202,21 @@ usersRouter.get(
     });
   }
 );
+
+async function checkFriendRequest(user, friend) {
+  const populatedUser = await User.findById(user).populate(
+    'friendRequests.user'
+  );
+
+  const friendRequest = populatedUser.friendRequests.find((request) => {
+    return (
+      request.recipient._id.toString() === friend &&
+      request.status === 'pending'
+    );
+  });
+
+  // return true if there is a pending friend request, false otherwise
+  return !!friendRequest;
+}
 
 module.exports = usersRouter;
