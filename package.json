@@ -7,7 +7,7 @@
     "test": "cross-env NODE_ENV=test jest --verbose --runInBand",
     "dev": "cross-env NODE_ENV=development nodemon index.js",
     "start": "cross-env NODE_ENV=production node index.js",
-    "console": "cross-env NODE_ENV=test node --experimental-repl-await ./console.js"
+    "console": "cross-env NODE_ENV=development node --experimental-repl-await ./console.js"
   },
   "author": "",
   "license": "ISC",
