@@ -14,6 +14,10 @@ const taskSchema = new mongoose.Schema({
     trim: true,
     maxlength: 1024
   },
+  creator: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   dueDate: {
     type: Date,
     required: false

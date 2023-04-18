@@ -1,232 +1,219 @@
-const usersRouter = require('express').Router();
-const passport = require('passport');
-const { User, FriendRequest } = require('../../models/v1');
-const generateToken = require('../../utils/generateToken');
-const { authMiddleware } = require('../../utils/middleware');
+const usersRouter = require('express').Router()
+const { User, FriendRequest } = require('../../models/v1')
+const generateToken = require('../../utils/generateToken')
+const { authMiddleware } = require('../../utils/middleware')
 
 usersRouter.post('/signup', async (request, response) => {
-  const { email, name, password, username } = request.body;
+  const { email, name, password, username } = request.body
 
-  const userExists = await User.findOne({ email });
+  const userExists = await User.findOne({ email })
 
   if (userExists) {
-    return response.status(400).json({ message: 'Email already in use' });
+    return response.status(400).json({ message: 'Email already in use' })
   }
 
-  const user = new User({ name, email, password, username });
+  const user = new User({ name, email, password, username })
 
-  await user.save();
+  await user.save()
 
-  const signedToken = generateToken(user);
+  const signedToken = generateToken(user)
 
   return response.status(201).json({
     message: 'User registered successfully.',
     token: signedToken.token,
     expiresIn: signedToken.expires,
-    user,
-  });
-});
+    user
+  })
+})
 
 usersRouter.post('/signin', async (request, response) => {
-  const { email, password } = request.body;
-  const user = await User.findOne({ email });
+  const { email, password } = request.body
+  const user = await User.findOne({ email })
 
   if (!user) {
-    return response.status(401).json({ message: 'Invalid email or password' });
+    return response.status(401).json({ message: 'Invalid email or password' })
   }
 
-  const isMatch = await user.comparePassword(password);
+  const isMatch = await user.comparePassword(password)
 
   if (!isMatch) {
-    return response.status(401).json({ message: 'Invalid email or password' });
+    return response.status(401).json({ message: 'Invalid email or password' })
   }
 
-  const token = generateToken(user);
+  const token = generateToken(user)
   return response.status(200).json({
     success: 'User signed in succesfully.',
     token: token.token,
-    expiresIn: token.expires,
-  });
-});
+    expiresIn: token.expires
+  })
+})
 
 usersRouter.post(
   '/friends',
-  passport.authenticate('jwt', { session: false }),
+  authMiddleware,
   async (request, response, next) => {
-    const { recipient } = request.body;
-    const requester = request.user.id;
+    const { recipient } = request.body
+    const requester = request.user.id
 
-    const foundRequester = await User.findById(requester).populate('friends');
-    const foundRecipient = await User.findById(recipient);
+    const foundRequester = await User.findById(requester).populate('friends')
+    const foundRecipient = await User.findById(recipient)
 
     if (!foundRequester || !foundRecipient) {
-      return response.status(404).json({ message: 'User not found' });
+      return response.status(404).json({ message: 'User not found' })
     }
 
     const existingRequest = await FriendRequest.findOne({
       requester,
       recipient,
-      status: 'pending',
-    });
+      status: 'pending'
+    })
 
     if (existingRequest) {
       return response
         .status(400)
-        .send({ message: 'Friend request already exists' });
+        .send({ message: 'Friend request already exists' })
     }
 
     const areFriends = foundRequester.friends.some((friend) =>
       friend._id.equals(recipient)
-    );
+    )
 
     if (areFriends) {
       return response
         .status(400)
-        .send({ message: "You're already friends with user" });
+        .send({ message: 'You\'re already friends with user' })
     }
 
-    const friendRequest = new FriendRequest({ requester, recipient });
-    await friendRequest.save();
+    const friendRequest = new FriendRequest({ requester, recipient })
+    await friendRequest.save()
 
     await User.findByIdAndUpdate(
       foundRequester,
       { $push: { friendRequests: friendRequest } },
       { new: true }
-    );
+    )
 
     await User.findByIdAndUpdate(
       foundRecipient,
       { $push: { friendRequests: friendRequest } },
       { new: true }
-    );
+    )
 
-    return response.status(201).json({ message: 'Friend request sent' });
+    return response.status(201).json({ message: 'Friend request sent' })
   }
-);
+)
 
 usersRouter.delete(
   '/friends',
-  passport.authenticate('jwt', { session: false }),
+  authMiddleware,
   async (request, response, next) => {
-    const { friendId } = request.body;
-    const friend = await User.findById(friendId);
-    const user = request.user;
+    const { friendId } = request.body
+    const friend = await User.findById(friendId)
+    const user = request.user
 
     if (!friend) {
-      return response.status(404).json({ message: 'Friend not found' });
+      return response.status(404).json({ message: 'Friend not found' })
     }
 
     const areFriends = user.friends.some((friend) =>
       friend._id.equals(friendId)
-    );
+    )
 
     if (!areFriends) {
       return response
         .status(400)
-        .send({ message: "You aren't friends with the user" });
+        .send({ message: 'You aren\'t friends with the user' })
     }
 
-    user.friends.pull(friendId);
-    await user.save();
+    user.friends.pull(friendId)
+    await user.save()
 
-    friend.friends.pull(user.id);
-    await friend.save();
+    friend.friends.pull(user.id)
+    await friend.save()
 
-    response.json({ message: 'unfriended succesfully', friend });
+    response.json({ message: 'unfriended succesfully', friend })
   }
-);
+)
 
-usersRouter.put(
-  '/friends',
-  passport.authenticate('jwt', { session: false }),
-  async (request, response) => {
-    const { status, friendRequestId } = request.body;
+usersRouter.put('/friends', authMiddleware, async (request, response) => {
+  const { status, friendRequestId } = request.body
 
-    const friendRequest = await FriendRequest.findByIdAndUpdate(
-      friendRequestId,
-      { status },
-      { new: true }
-    );
+  const friendRequest = await FriendRequest.findByIdAndUpdate(
+    friendRequestId,
+    { status },
+    { new: true }
+  )
 
-    if (!friendRequest) {
-      return response.status(404).json({ message: 'Friend Request not found' });
-    }
+  if (!friendRequest) {
+    return response.status(404).json({ message: 'Friend Request not found' })
+  }
 
-    if (
-      friendRequest.requester.toString() === request.user.id.toString() &&
-      status === 'REJECTED'
-    ) {
-      await User.findByIdAndUpdate(friendRequest.requester._id, {
-        $pull: { friendRequests: friendRequestId },
-      })
-        .populate({ path: 'friendRequests' })
-        .exec();
-
-      await User.findByIdAndUpdate(friendRequest.recipient, {
-        $pull: { friendRequests: friendRequestId },
-      })
-        .populate({ path: 'friendRequests' })
-        .exec();
-
-      await FriendRequest.findByIdAndDelete(friendRequestId);
-      return response
-        .status(401)
-        .json({ message: 'Friend requested cancelled.' });
-    }
-
-    if (friendRequest.recipient.toString() !== request.user.id.toString()) {
-      return response.status(401).json({ error: 'Unauthorized' });
-    }
-
-    if (status === 'ACCEPTED') {
-      await User.findByIdAndUpdate(friendRequest.requester, {
-        $addToSet: { friends: friendRequest.recipient },
-      });
-      await User.findByIdAndUpdate(friendRequest.recipient, {
-        $addToSet: { friends: friendRequest.requester },
-      });
-    }
-
+  if (
+    friendRequest.requester.toString() === request.user.id.toString() &&
+    status === 'REJECTED'
+  ) {
     await User.findByIdAndUpdate(friendRequest.requester._id, {
-      $pull: { friendRequests: friendRequestId },
+      $pull: { friendRequests: friendRequestId }
     })
       .populate({ path: 'friendRequests' })
-      .exec();
+      .exec()
 
     await User.findByIdAndUpdate(friendRequest.recipient, {
-      $pull: { friendRequests: friendRequestId },
+      $pull: { friendRequests: friendRequestId }
     })
       .populate({ path: 'friendRequests' })
-      .exec();
+      .exec()
 
-    await FriendRequest.findByIdAndDelete(friendRequestId);
-
-    response.json({ message: 'Friend request updated successfully' });
+    await FriendRequest.findByIdAndDelete(friendRequestId)
+    return response
+      .status(401)
+      .json({ message: 'Friend requested cancelled.' })
   }
-);
 
-usersRouter.get(
-  '/me',
-  passport.authenticate('jwt', { session: false }),
-  (request, response) => {
-    response.json({
-      user: request.user,
-    });
+  if (friendRequest.recipient.toString() !== request.user.id.toString()) {
+    return response.status(401).json({ error: 'Unauthorized' })
   }
-);
 
-usersRouter.get(
-  '/friendrequest',
-  passport.authenticate('jwt', { session: false }),
-  async (request, response) => {
-    const populatedUser = await User.findById(request.user.id)
-      .populate({ path: 'friendRequests' })
-      .exec();
-
-    response.json({
-      user: populatedUser.friendRequests,
-    });
+  if (status === 'ACCEPTED') {
+    await User.findByIdAndUpdate(friendRequest.requester, {
+      $addToSet: { friends: friendRequest.recipient }
+    })
+    await User.findByIdAndUpdate(friendRequest.recipient, {
+      $addToSet: { friends: friendRequest.requester }
+    })
   }
-);
 
-module.exports = usersRouter;
+  await User.findByIdAndUpdate(friendRequest.requester._id, {
+    $pull: { friendRequests: friendRequestId }
+  })
+    .populate({ path: 'friendRequests' })
+    .exec()
+
+  await User.findByIdAndUpdate(friendRequest.recipient, {
+    $pull: { friendRequests: friendRequestId }
+  })
+    .populate({ path: 'friendRequests' })
+    .exec()
+
+  await FriendRequest.findByIdAndDelete(friendRequestId)
+
+  response.json({ message: 'Friend request updated successfully' })
+})
+
+usersRouter.get('/me', authMiddleware, (request, response) => {
+  response.json({
+    user: request.user
+  })
+})
+
+usersRouter.get('/friendrequest', authMiddleware, async (request, response) => {
+  const populatedUser = await User.findById(request.user.id)
+    .populate({ path: 'friendRequests' })
+    .exec()
+
+  response.json({
+    user: populatedUser.friendRequests
+  })
+})
+
+module.exports = usersRouter

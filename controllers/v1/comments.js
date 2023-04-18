@@ -1,11 +1,10 @@
-const Task = require('../models/task')
-const Comment = require('../models/comment')
+const { Task, Comment } = require('../../models/v1/index')
 const commentsRouter = require('express').Router()
 const { authMiddleware } = require('../../utils/middleware')
 
 commentsRouter.post('/', authMiddleware, async (req, res) => {
-  // const { taskId } = req.params;
   const { text, taskId } = req.body
+  const currentUser = req.user
 
   const task = await Task.findOne({ _id: taskId })
 
@@ -14,8 +13,10 @@ commentsRouter.post('/', authMiddleware, async (req, res) => {
   }
 
   if (
-    !task.assignedUsers.includes(req.user.id) ||
-    task.owner !== req.user._id.toString()
+    !(
+      task.assignedUsers.includes(currentUser.id) ||
+      task.creator._id.toString() === currentUser._id.toString()
+    )
   ) {
     return res
       .status(403)
@@ -23,9 +24,9 @@ commentsRouter.post('/', authMiddleware, async (req, res) => {
   }
 
   const comment = new Comment({
-    text,
+    comment: text,
     task: task._id,
-    author: req.user._id
+    author: currentUser._id
   })
 
   await comment.save()
@@ -37,12 +38,18 @@ commentsRouter.post('/', authMiddleware, async (req, res) => {
   res.status(201).json({ message: 'Comment created successfully', comment })
 })
 
-commentsRouter.delete('/:commentId', authMiddleware, async (req, res, next) => {
-  const { commentId } = req.params
+commentsRouter.delete('/', authMiddleware, async (req, res, next) => {
+  const { commentId } = req.body
+  const currentUser = req.user
+
   const comment = await Comment.findOne({
     _id: commentId,
     author: req.user._id
   })
+
+  if (!comment) {
+    return res.status(404).json({ message: 'Comment not found' })
+  }
 
   const task = await Task.findById(comment.task)
 
@@ -51,16 +58,14 @@ commentsRouter.delete('/:commentId', authMiddleware, async (req, res, next) => {
   }
 
   if (
-    !task.assignedUsers.includes(req.user.id) ||
-    task.owner !== req.user._id.toString()
+    !(
+      task.assignedUsers.includes(currentUser.id) ||
+      task.creator._id.toString() === currentUser._id.toString()
+    )
   ) {
     return res
       .status(403)
       .json({ error: 'User is not assigned to this task.' })
-  }
-
-  if (!comment) {
-    return res.status(404).json({ message: 'Comment not found' })
   }
 
   task.comments.pull(comment._id)
@@ -72,24 +77,23 @@ commentsRouter.delete('/:commentId', authMiddleware, async (req, res, next) => {
 
 commentsRouter.get('/', authMiddleware, async (req, res) => {
   const { taskId } = req.body
+  const currentUser = req.user
 
-  const task = await Task.findOne({ _id: taskId })
+  const task = await Task.findOne({ _id: taskId }).populate('comments')
 
   if (!task) {
     return res.status(404).json({ message: 'Task not found' })
   }
 
   if (
-    !task.assignedUsers.includes(req.user.id) ||
-    task.owner !== req.user._id.toString()
+    !(
+      task.assignedUsers.includes(currentUser.id) ||
+      task.creator._id.toString() === currentUser._id.toString()
+    )
   ) {
     return res
       .status(403)
       .json({ error: 'User is not assigned to this task.' })
-  }
-
-  if (!task.assignedUsers.includes(req.user._id)) {
-    return res.status(401).json({ message: 'Unauthorized' })
   }
 
   const comments = await task.comments

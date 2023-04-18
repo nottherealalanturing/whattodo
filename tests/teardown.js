@@ -1,3 +1,3 @@
 module.exports = () => {
-  process.exit(0)
+  setupFilesAfterEnv: ['./setupFilesAfterEnv/setup.js'], process.exit(0)
 }
