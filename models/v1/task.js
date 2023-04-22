@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose')
 
 const taskSchema = new mongoose.Schema({
   title: {
@@ -6,45 +6,49 @@ const taskSchema = new mongoose.Schema({
     required: true,
     trim: true,
     minlength: 3,
-    maxlength: 255,
+    maxlength: 255
   },
   description: {
     type: String,
     required: false,
     trim: true,
-    maxlength: 1024,
+    maxlength: 1024
+  },
+  creator: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   dueDate: {
     type: Date,
-    required: false,
+    required: false
   },
   priority: {
     type: Number,
-    default: 1,
+    default: 1
   },
   completed: {
     type: Boolean,
-    default: false,
+    default: false
   },
   group: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Group",
-    required: false,
+    ref: 'Group',
+    required: false
   },
   assignedUsers: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
+      ref: 'User'
+    }
   ],
   comments: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Comment",
-    },
-  ],
-});
+      ref: 'Comment'
+    }
+  ]
+})
 
-const Task = mongoose.model("Task", taskSchema);
+const Task = mongoose.model('Task', taskSchema)
 
-module.exports = Task;
+module.exports = Task
