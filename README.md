@@ -1,4 +1,4 @@
-# Todoable (server)
+# WhatTodo (server)
 
 This project is a web application for managing group tasks and communication between group members. Users can create groups, add members, create tasks, assign tasks to members, and communicate progress on tasks through comments.
 
